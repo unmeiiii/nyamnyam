@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 import 'screen/welcome_screen.dart';
-// import 'firebase_options.dart'; // ONLY if you used flutterfire configure
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Firebase.initializeApp(
-    // options: DefaultFirebaseOptions.currentPlatform, // ← uncomment ONLY if you have firebase_options.dart
+    options: DefaultFirebaseOptions.currentPlatform,
   );
 
   runApp(const NyamNyamApp());
@@ -20,7 +20,11 @@ class NyamNyamApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Nyam-Nyam',
+      title: 'Nyam-Nyam!',
+      theme: ThemeData(
+        fontFamily: 'Poppins',
+        useMaterial3: true,
+      ),
       home: const WelcomeScreen(),
     );
   }

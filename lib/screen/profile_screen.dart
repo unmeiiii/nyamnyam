@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+import 'edit_profile_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -8,172 +12,190 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  final _formKey = GlobalKey<FormState>();
-  bool hidePassword = true;
+  String displayName = '';
+  String bio = '';
 
-  InputDecoration _inputDecoration({
-    required String hint,
-    required IconData icon,
-    Widget? suffixIcon,
-  }) {
-    return InputDecoration(
-      hintText: hint,
-      hintStyle: const TextStyle(
-        fontFamily: 'Poppins',
-        fontSize: 16,
-        color: Color(0xFF717182),
-      ),
-      prefixIcon: Icon(icon, color: const Color(0xFF9810FA)),
-      suffixIcon: suffixIcon,
-      filled: true,
-      fillColor: Colors.white,
-      contentPadding: const EdgeInsets.symmetric(vertical: 16),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: Color(0xFFD1D5DC)),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: Color(0xFFD1D5DC)),
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final doc =
+    await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+
+    setState(() {
+      displayName =
+          user.displayName ??
+              doc.data()?['displayName'] ??
+              user.email!.split('@').first;
+
+      bio = doc.data()?['bio'] ?? '';
+    });
+  }
+
+  Future<void> _editBio() async {
+    final controller = TextEditingController(text: bio);
+
+    final result = await showDialog<String>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+        title: const Text('Edit Bio'),
+        content: TextField(
+          controller: controller,
+          maxLines: 3,
+          decoration: const InputDecoration(hintText: 'Write something...'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, controller.text.trim()),
+            child: const Text('Save'),
+          ),
+        ],
       ),
     );
+
+    if (result != null) {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .update({'bio': result});
+
+      setState(() => bio = result);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: const Text("Manage Profile"),
-        backgroundColor: const Color(0xFFFF8904),
-        foregroundColor: Colors.white,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Form(
-          key: _formKey,
+
+      body: SafeArea(
+        child: SingleChildScrollView(
           child: Column(
             children: [
-              /// Profile Avatar
-              Container(
-                width: 110,
-                height: 110,
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: LinearGradient(
-                    colors: [Color(0xFFFF8904), Color(0xFFF54900)],
-                  ),
-                ),
-                child: const Icon(Icons.person, size: 56, color: Colors.white),
-              ),
-
               const SizedBox(height: 24),
 
-              /// Display Name
-              TextFormField(
-                decoration: _inputDecoration(
-                  hint: "Display Name",
-                  icon: Icons.badge_outlined,
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return "Display name is required";
-                  }
-                  return null;
-                },
-              ),
-
-              const SizedBox(height: 16),
-
-              /// Mobile Phone
-              TextFormField(
-                keyboardType: TextInputType.phone,
-                decoration: _inputDecoration(
-                  hint: "Mobile Phone",
-                  icon: Icons.phone_outlined,
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return "Mobile phone is required";
-                  }
-                  if (value.length < 9) {
-                    return "Invalid phone number";
-                  }
-                  return null;
-                },
-              ),
-
-              const SizedBox(height: 16),
-
-              /// Change Password
-              TextFormField(
-                obscureText: hidePassword,
-                decoration: _inputDecoration(
-                  hint: "New Password",
-                  icon: Icons.lock_outline,
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      hidePassword ? Icons.visibility_off : Icons.visibility,
-                      color: const Color(0xFF9810FA),
+              /// ===== HEADER =====
+              Column(
+                children: [
+                  const CircleAvatar(
+                    radius: 42,
+                    backgroundColor: Color(0xFFE5E7EB),
+                    child: Icon(
+                      Icons.person,
+                      size: 42,
+                      color: Color(0xFF9CA3AF),
                     ),
-                    onPressed: () {
-                      setState(() {
-                        hidePassword = !hidePassword;
-                      });
-                    },
                   ),
-                ),
-                validator: (value) {
-                  if (value != null && value.isNotEmpty && value.length < 6) {
-                    return "Password must be at least 6 characters";
-                  }
-                  return null;
-                },
+                  const SizedBox(height: 12),
+
+                  /// Name + Edit button
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        displayName,
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w600,
+                          fontFamily: 'Poppins',
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        icon: const Icon(Icons.edit, size: 18),
+                        onPressed: () async {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const EditProfileScreen(),
+                            ),
+                          );
+                          _loadProfile(); // refresh after edit
+                        },
+                      ),
+                    ],
+                  ),
+                ],
               ),
 
               const SizedBox(height: 32),
 
-              /// Save Button
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton(
-                  onPressed: () {
-                    if (_formKey.currentState!.validate()) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text("Profile updated successfully"),
+              /// ===== ABOUT =====
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'About',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                      );
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    padding: EdgeInsets.zero,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                  ),
-                  child: Ink(
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Color(0xFFFF8904), Color(0xFFFF6900)],
-                      ),
-                      borderRadius: BorderRadius.all(Radius.circular(30)),
-                    ),
-                    child: const Center(
-                      child: Text(
-                        "Save Changes",
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.white,
+                        TextButton.icon(
+                          onPressed: _editBio,
+                          icon: const Icon(Icons.edit, size: 18),
+                          label: const Text('Edit Bio'),
                         ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      bio.isEmpty ? 'No bio yet' : bio,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFF6A7282),
                       ),
                     ),
-                  ),
+                  ],
                 ),
               ),
+
+              const SizedBox(height: 40),
+
+              /// ===== EMPTY STATE =====
+              Column(
+                children: const [
+                  Icon(
+                    Icons.rate_review_outlined,
+                    size: 48,
+                    color: Color(0xFF9CA3AF),
+                  ),
+                  SizedBox(height: 12),
+                  Text(
+                    'No reviews yet',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'Start exploring and share your experiences!',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF6A7282),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 80),
             ],
           ),
         ),

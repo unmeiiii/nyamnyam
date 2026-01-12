@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../screen/profile_screen.dart';
+import '../screen/settings_screen.dart';
 
 class AppDrawer extends StatefulWidget {
   const AppDrawer({super.key});
@@ -164,7 +165,10 @@ class _AppDrawerState extends State<AppDrawer> {
               label: "Settings",
               onTap: () {
                 Navigator.pop(context);
-                // TODO: Navigate to Settings screen
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                );
               },
             ),
 
